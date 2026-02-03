@@ -1,6 +1,12 @@
 # Team Flags EDU - Production-Grade Dockerfile
 # Multi-stage build for optimal image size and security
 # This Dockerfile demonstrates DevSecOps best practices
+#
+# Week 3: Docker Compose - This image works with docker-compose.yml
+# Week 5+: Add Firebase credentials for authentication features
+#
+# Build: docker build -t team-flags-edu .
+# Run:   docker run -p 3000:3000 -e MONGODB_URI=... team-flags-edu
 
 # ============================================
 # Stage 1: Dependencies
@@ -29,9 +35,10 @@ COPY . .
 ENV NODE_ENV=production
 ENV NEXT_TELEMETRY_DISABLED=1
 
-# Set dummy build-time environment variables
-# These are only used during build and won't be in the final image
-ENV MONGODB_URI=mongodb://localhost:27017
+# Build-time environment variables (dummy values for build only)
+# Real values are passed at runtime via docker-compose.yml or -e flags
+# MongoDB and Firebase are optional - app works without them for Week 2-4
+ENV MONGODB_URI=""
 ENV MONGODB_DB=team-flags-edu
 ENV STUDENTS_COLLECTION=students
 ENV SKIP_ENV_VALIDATION=true
@@ -45,6 +52,9 @@ RUN npm run build
 # ============================================
 FROM node:20-alpine AS runner
 WORKDIR /app
+
+# Install wget for health checks
+RUN apk add --no-cache wget
 
 # Security: Create a non-root user
 # Running as root is a security risk
@@ -75,6 +85,10 @@ EXPOSE 3000
 # Set hostname to allow external connections
 ENV HOSTNAME="0.0.0.0"
 ENV PORT=3000
+
+# Health check - Docker Compose uses this to verify the app is ready
+HEALTHCHECK --interval=30s --timeout=3s --start-period=10s --retries=3 \
+  CMD wget --quiet --tries=1 --spider http://localhost:3000/api/health || exit 1
 
 # Start the Next.js application
 # Standalone mode uses server.js directly
